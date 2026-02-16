@@ -43,7 +43,7 @@ interface AggregateStats {
 const devices: Device[] = [
   {
     id: "EAGLE-200-12345",
-    name: "Main Building Meter",
+    name: "Device 1",
     status: "active",
     type: "grid",
     location: "Building A - Main Entrance",
@@ -56,6 +56,22 @@ const devices: Device[] = [
     type: "solar",
     location: "Building A - Rooftop",
     utilityId: "UTIL-001",
+  },
+  {
+    id: "EAGLE-200-11111",
+    name: "Device 2",
+    status: "inactive",
+    type: "wind",
+    location: "Building B - West Wing",
+    utilityId: "UTIL-002",
+  },
+  {
+    id: "EAGLE-200-22222",
+    name: "Battery Storage Unit",
+    status: "maintenance",
+    type: "battery",
+    location: "Building C - Basement",
+    utilityId: "UTIL-003",
   },
 ];
 
@@ -222,7 +238,7 @@ app.get("/dashboard", (req: Request, res: Response) => {
     </head>
     <body>
       <h1>Device Dashboard</h1>
-      <div id="websocket-status" class="connected">Connected</div>
+      <div id="websocket-status" data-testid="websocket-status" class="connected">Connected</div>
 
       <div data-testid="alerts-panel">
         <h2>Alerts</h2>
@@ -252,7 +268,7 @@ app.get("/dashboard", (req: Request, res: Response) => {
         ${devices.map(device => `
           <div class="device-card" data-testid="device-card" onclick="window.location.href='/devices/${device.id}'">
             <h3 data-testid="device-name">${device.name}</h3>
-            <div data-testid="device-type">${device.type === 'solar' ? 'Solar Panel' : device.type}</div>
+            <div data-testid="device-type">${device.type === 'solar' ? 'Solar Panel' : device.type === 'grid' ? 'Grid' : device.type}</div>
             <div data-testid="device-status" class="status-${device.status}">${device.status}</div>
             <div data-testid="current-reading">12.5 kWh</div>
           </div>
