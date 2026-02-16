@@ -196,6 +196,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // REST API ENDPOINTS
 // ============================================================================
 
+// GET /health - Health check endpoint
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // POST /api/readings - Create energy reading
 app.post("/api/readings", (req: Request, res: Response) => {
   const { deviceId, kwh, voltage, readingType } = req.body;
