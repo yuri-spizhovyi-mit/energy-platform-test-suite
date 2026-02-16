@@ -47,29 +47,23 @@ jobs:
       - name: Start Kafka with Docker
         run: |
           docker run -d \
-            --name zookeeper \
-            --network host \
-            -e ZOOKEEPER_CLIENT_PORT=2181 \
-            -e ZOOKEEPER_TICK_TIME=2000 \
-            confluentinc/cp-zookeeper:latest
-
-          sleep 10
-
-          docker run -d \
             --name kafka \
-            --network host \
-            -e KAFKA_BROKER_ID=1 \
-            -e KAFKA_ZOOKEEPER_CONNECT=localhost:2181 \
-            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
-            -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
-            -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
-            -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
-            -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
-            confluentinc/cp-kafka:latest
+            -p 9092:9092 \
+            docker.redpanda.com/vectorized/redpanda:latest \
+            redpanda start \
+            --smp 1 \
+            --memory 512M \
+            --reserve-memory 0M \
+            --overprovisioned \
+            --node-id 0 \
+            --check=false \
+            --kafka-addr PLAINTEXT://0.0.0.0:9092 \
+            --advertise-kafka-addr PLAINTEXT://127.0.0.1:9092
 
           echo "Waiting for Kafka to be ready..."
-          timeout 90 bash -c 'until nc -z 127.0.0.1 9092; do sleep 2; done'
-          sleep 15
+          timeout 60 bash -c 'until nc -z 127.0.0.1 9092; do sleep 2; done'
+          echo "Kafka is ready!"
+          sleep 5
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -159,29 +153,23 @@ jobs:
       - name: Start Kafka with Docker
         run: |
           docker run -d \
-            --name zookeeper \
-            --network host \
-            -e ZOOKEEPER_CLIENT_PORT=2181 \
-            -e ZOOKEEPER_TICK_TIME=2000 \
-            confluentinc/cp-zookeeper:latest
-
-          sleep 10
-
-          docker run -d \
             --name kafka \
-            --network host \
-            -e KAFKA_BROKER_ID=1 \
-            -e KAFKA_ZOOKEEPER_CONNECT=localhost:2181 \
-            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
-            -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
-            -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
-            -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
-            -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
-            confluentinc/cp-kafka:latest
+            -p 9092:9092 \
+            docker.redpanda.com/vectorized/redpanda:latest \
+            redpanda start \
+            --smp 1 \
+            --memory 512M \
+            --reserve-memory 0M \
+            --overprovisioned \
+            --node-id 0 \
+            --check=false \
+            --kafka-addr PLAINTEXT://0.0.0.0:9092 \
+            --advertise-kafka-addr PLAINTEXT://127.0.0.1:9092
 
           echo "Waiting for Kafka to be ready..."
-          timeout 90 bash -c 'until nc -z 127.0.0.1 9092; do sleep 2; done'
-          sleep 15
+          timeout 60 bash -c 'until nc -z 127.0.0.1 9092; do sleep 2; done'
+          echo "Kafka is ready!"
+          sleep 5
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
