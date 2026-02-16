@@ -201,6 +201,109 @@ app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// GET /dashboard - Dashboard UI for E2E tests
+app.get("/dashboard", (req: Request, res: Response) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Energy Platform Dashboard</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .device-card { border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .status-active { color: green; }
+        .status-inactive { color: gray; }
+        .status-maintenance { color: orange; }
+        #mobile-menu { display: none; }
+        @media (max-width: 768px) { #mobile-menu { display: block; } }
+      </style>
+    </head>
+    <body>
+      <h1>Device Dashboard</h1>
+      <div id="websocket-status" class="connected">Connected</div>
+
+      <div data-testid="alerts-panel">
+        <h2>Alerts</h2>
+        <div data-testid="alerts-badge">2</div>
+        <div data-testid="alert-item">High consumption detected</div>
+      </div>
+
+      <input type="text" data-testid="search-input" placeholder="Search devices...">
+
+      <select data-testid="filter-type">
+        <option value="">All Types</option>
+        <option value="Solar Panel">Solar Panel</option>
+        <option value="Grid">Grid</option>
+      </select>
+
+      <select data-testid="filter-status">
+        <option value="">All Status</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+
+      <div data-testid="total-consumption">125.5 kWh</div>
+
+      <div id="mobile-menu" data-testid="mobile-menu">Menu</div>
+
+      <div data-testid="device-list" id="device-list">
+        ${devices.map(device => `
+          <div class="device-card" data-testid="device-card" onclick="window.location.href='/devices/${device.id}'">
+            <h3 data-testid="device-name">${device.name}</h3>
+            <div data-testid="device-type">${device.type === 'solar' ? 'Solar Panel' : device.type}</div>
+            <div data-testid="device-status" class="status-${device.status}">${device.status}</div>
+            <div data-testid="current-reading">12.5 kWh</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <script src="/socket.io/socket.io.js"></script>
+      <script>
+        const socket = io();
+
+        // Simulate real-time updates
+        setInterval(() => {
+          const readings = document.querySelectorAll('[data-testid="current-reading"]');
+          readings.forEach(reading => {
+            const current = parseFloat(reading.textContent);
+            reading.textContent = (current + Math.random() * 2 - 1).toFixed(1) + ' kWh';
+          });
+        }, 5000);
+
+        // Search functionality
+        document.querySelector('[data-testid="search-input"]').addEventListener('input', (e) => {
+          const search = e.target.value.toLowerCase();
+          document.querySelectorAll('[data-testid="device-card"]').forEach(card => {
+            const name = card.querySelector('[data-testid="device-name"]').textContent.toLowerCase();
+            card.style.display = name.includes(search) ? 'block' : 'none';
+          });
+        });
+
+        // Filter by type
+        document.querySelector('[data-testid="filter-type"]').addEventListener('change', (e) => {
+          const type = e.target.value;
+          document.querySelectorAll('[data-testid="device-card"]').forEach(card => {
+            const deviceType = card.querySelector('[data-testid="device-type"]').textContent;
+            card.style.display = !type || deviceType === type ? 'block' : 'none';
+          });
+        });
+
+        // Filter by status
+        document.querySelector('[data-testid="filter-status"]').addEventListener('change', (e) => {
+          const status = e.target.value.toLowerCase();
+          document.querySelectorAll('[data-testid="device-card"]').forEach(card => {
+            const deviceStatus = card.querySelector('[data-testid="device-status"]');
+            card.style.display = !status || deviceStatus.classList.contains('status-' + status) ? 'block' : 'none';
+          });
+        });
+      </script>
+    </body>
+    </html>
+  `);
+});
+
 // POST /api/readings - Create energy reading
 app.post("/api/readings", (req: Request, res: Response) => {
   const { deviceId, kwh, voltage, readingType } = req.body;
@@ -304,6 +407,78 @@ app.get("/api/readings/:deviceId/aggregate", (req: Request, res: Response) => {
 // GET /api/devices - Get all devices
 app.get("/api/devices", (req: Request, res: Response) => {
   res.json(devices);
+});
+
+// GET /devices/:id - Device details page for E2E tests
+app.get("/devices/:id", (req: Request, res: Response) => {
+  const device = devices.find((d) => d.id === req.params.id);
+
+  if (!device) {
+    return res.status(404).send("<h1>Device not found</h1>");
+  }
+
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${device.name} - Details</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chart { width: 100%; height: 400px; border: 1px solid #ccc; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div data-testid="device-details">
+        <h1 data-testid="device-name">${device.name}</h1>
+        <p><strong>Type:</strong> <span data-testid="device-type">${device.type}</span></p>
+        <p><strong>Location:</strong> <span data-testid="device-location">${device.location}</span></p>
+        <p><strong>Status:</strong> <span data-testid="device-status">${device.status}</span></p>
+        <p><strong>Last Reading:</strong> <span data-testid="last-reading">${new Date().toISOString()}</span></p>
+
+        <h2>Energy Readings</h2>
+        <div data-testid="energy-chart" class="chart">
+          <canvas data-testid="chart-canvas" width="800" height="400"></canvas>
+        </div>
+
+        <div data-testid="readings-count">48 readings</div>
+
+        <h3>Date Range Filter</h3>
+        <input type="date" data-testid="date-range-start" value="2024-01-01">
+        <input type="date" data-testid="date-range-end" value="2024-12-31">
+        <button data-testid="apply-date-range">Apply Filter</button>
+
+        <h3>Export Data</h3>
+        <button data-testid="export-csv" onclick="exportCSV()">Export as CSV</button>
+      </div>
+
+      <script>
+        function exportCSV() {
+          const csv = 'timestamp,kwh,voltage\\n2024-01-01T00:00:00Z,12.5,240\\n';
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'device-readings.csv';
+          a.click();
+        }
+
+        // Draw simple chart
+        const canvas = document.querySelector('[data-testid="chart-canvas"]');
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 200);
+        for (let i = 0; i < 800; i += 20) {
+          ctx.lineTo(i, 200 + Math.sin(i / 50) * 100);
+        }
+        ctx.stroke();
+      </script>
+    </body>
+    </html>
+  `);
 });
 
 // GET /api/devices/:id - Get device by ID
