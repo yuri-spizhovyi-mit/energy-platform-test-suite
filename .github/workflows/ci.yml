@@ -46,12 +46,9 @@ jobs:
 
       - name: Start Kafka with Docker
         run: |
-          docker network create kafka-network
-
           docker run -d \
             --name zookeeper \
-            --network kafka-network \
-            -p 2181:2181 \
+            --network host \
             -e ZOOKEEPER_CLIENT_PORT=2181 \
             -e ZOOKEEPER_TICK_TIME=2000 \
             confluentinc/cp-zookeeper:latest
@@ -60,11 +57,10 @@ jobs:
 
           docker run -d \
             --name kafka \
-            --network kafka-network \
-            -p 9092:9092 \
+            --network host \
             -e KAFKA_BROKER_ID=1 \
-            -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
-            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+            -e KAFKA_ZOOKEEPER_CONNECT=localhost:2181 \
+            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
             -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
             -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
             -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
@@ -72,7 +68,7 @@ jobs:
             confluentinc/cp-kafka:latest
 
           echo "Waiting for Kafka to be ready..."
-          timeout 90 bash -c 'until nc -z localhost 9092; do sleep 2; done'
+          timeout 90 bash -c 'until nc -z 127.0.0.1 9092; do sleep 2; done'
           sleep 15
 
       - name: Install dependencies
@@ -162,12 +158,9 @@ jobs:
 
       - name: Start Kafka with Docker
         run: |
-          docker network create kafka-network
-
           docker run -d \
             --name zookeeper \
-            --network kafka-network \
-            -p 2181:2181 \
+            --network host \
             -e ZOOKEEPER_CLIENT_PORT=2181 \
             -e ZOOKEEPER_TICK_TIME=2000 \
             confluentinc/cp-zookeeper:latest
@@ -176,11 +169,10 @@ jobs:
 
           docker run -d \
             --name kafka \
-            --network kafka-network \
-            -p 9092:9092 \
+            --network host \
             -e KAFKA_BROKER_ID=1 \
-            -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
-            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+            -e KAFKA_ZOOKEEPER_CONNECT=localhost:2181 \
+            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
             -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092 \
             -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
             -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
@@ -188,7 +180,7 @@ jobs:
             confluentinc/cp-kafka:latest
 
           echo "Waiting for Kafka to be ready..."
-          timeout 90 bash -c 'until nc -z localhost 9092; do sleep 2; done'
+          timeout 90 bash -c 'until nc -z 127.0.0.1 9092; do sleep 2; done'
           sleep 15
 
       - name: Install dependencies
