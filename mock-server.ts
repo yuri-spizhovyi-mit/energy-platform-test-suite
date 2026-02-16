@@ -301,8 +301,16 @@ app.get("/dashboard", (req: Request, res: Response) => {
         document.querySelector('[data-testid="filter-type"]').addEventListener('change', (e) => {
           const type = e.target.value;
           document.querySelectorAll('[data-testid="device-card"]').forEach(card => {
-            const deviceType = card.querySelector('[data-testid="device-type"]').textContent;
-            card.style.display = !type || deviceType === type ? 'block' : 'none';
+            const deviceType = card.querySelector('[data-testid="device-type"]').textContent.trim();
+            if (!type || deviceType === type) {
+              card.style.display = 'block';
+              card.style.visibility = 'visible';
+              card.style.height = 'auto';
+            } else {
+              card.style.display = 'none';
+              card.style.visibility = 'hidden';
+              card.style.height = '0';
+            }
           });
         });
 
@@ -311,7 +319,16 @@ app.get("/dashboard", (req: Request, res: Response) => {
           const status = e.target.value.toLowerCase();
           document.querySelectorAll('[data-testid="device-card"]').forEach(card => {
             const deviceStatus = card.querySelector('[data-testid="device-status"]');
-            card.style.display = !status || deviceStatus.classList.contains('status-' + status) ? 'block' : 'none';
+            const hasStatus = !status || deviceStatus.classList.contains('status-' + status);
+            if (hasStatus) {
+              card.style.display = 'block';
+              card.style.visibility = 'visible';
+              card.style.height = 'auto';
+            } else {
+              card.style.display = 'none';
+              card.style.visibility = 'hidden';
+              card.style.height = '0';
+            }
           });
         });
       </script>
