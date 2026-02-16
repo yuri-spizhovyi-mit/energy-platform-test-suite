@@ -7,7 +7,7 @@ describe("Kafka Event Flow", () => {
   let consumer: Consumer;
   let topic: string;
 
-  const KAFKA_BROKER = process.env.KAFKA_BROKER || "localhost:9092";
+  const KAFKA_BROKER = process.env.KAFKA_BROKER || "127.0.0.1:9092";
 
   beforeAll(async () => {
     // Create unique topic for this test run
