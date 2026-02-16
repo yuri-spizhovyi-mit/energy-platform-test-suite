@@ -35,26 +35,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      zookeeper:
-        image: confluentinc/cp-zookeeper:latest
-        env:
-          ZOOKEEPER_CLIENT_PORT: 2181
-          ZOOKEEPER_TICK_TIME: 2000
-        ports:
-          - 2181:2181
-
-      kafka:
-        image: confluentinc/cp-kafka:latest
-        env:
-          KAFKA_BROKER_ID: 1
-          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-        ports:
-          - 9092:9092
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -64,14 +44,38 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Start Kafka with Docker
+        run: |
+          docker network create kafka-network
+
+          docker run -d \
+            --name zookeeper \
+            --network kafka-network \
+            -p 2181:2181 \
+            -e ZOOKEEPER_CLIENT_PORT=2181 \
+            -e ZOOKEEPER_TICK_TIME=2000 \
+            confluentinc/cp-zookeeper:latest
+
+          sleep 10
+
+          docker run -d \
+            --name kafka \
+            --network kafka-network \
+            -p 9092:9092 \
+            -e KAFKA_BROKER_ID=1 \
+            -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+            -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
+            -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
+            -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+            confluentinc/cp-kafka:latest
+
+          echo "Waiting for Kafka to be ready..."
+          timeout 90 bash -c 'until nc -z localhost 9092; do sleep 2; done'
+          sleep 15
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
-
-      - name: Wait for Kafka to be ready
-        run: |
-          echo "Waiting for Kafka to be ready..."
-          timeout 60 bash -c 'until nc -z localhost 9092; do sleep 1; done'
-          sleep 10
 
       - name: Start mock server
         run: |
@@ -146,26 +150,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      zookeeper:
-        image: confluentinc/cp-zookeeper:latest
-        env:
-          ZOOKEEPER_CLIENT_PORT: 2181
-          ZOOKEEPER_TICK_TIME: 2000
-        ports:
-          - 2181:2181
-
-      kafka:
-        image: confluentinc/cp-kafka:latest
-        env:
-          KAFKA_BROKER_ID: 1
-          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-        ports:
-          - 9092:9092
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -175,16 +159,38 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Start Kafka with Docker
+        run: |
+          docker network create kafka-network
+
+          docker run -d \
+            --name zookeeper \
+            --network kafka-network \
+            -p 2181:2181 \
+            -e ZOOKEEPER_CLIENT_PORT=2181 \
+            -e ZOOKEEPER_TICK_TIME=2000 \
+            confluentinc/cp-zookeeper:latest
+
+          sleep 10
+
+          docker run -d \
+            --name kafka \
+            --network kafka-network \
+            -p 9092:9092 \
+            -e KAFKA_BROKER_ID=1 \
+            -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+            -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
+            -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
+            -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+            confluentinc/cp-kafka:latest
+
+          echo "Waiting for Kafka to be ready..."
+          timeout 90 bash -c 'until nc -z localhost 9092; do sleep 2; done'
+          sleep 15
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
-
-      - name: Wait for services
-        run: |
-          echo "Waiting for Kafka..."
-          timeout 60 bash -c 'until nc -z localhost 9092; do sleep 1; done'
-          echo "Waiting for Redis..."
-          timeout 30 bash -c 'until nc -z localhost 6379; do sleep 1; done'
-          sleep 10
 
       - name: Start mock server
         run: |
