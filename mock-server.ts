@@ -303,13 +303,11 @@ app.get("/dashboard", (req: Request, res: Response) => {
           document.querySelectorAll('[data-testid="device-card"]').forEach(card => {
             const deviceType = card.querySelector('[data-testid="device-type"]').textContent.trim();
             if (!type || deviceType === type) {
+              card.setAttribute('data-testid', 'device-card');
               card.style.display = 'block';
-              card.style.visibility = 'visible';
-              card.style.height = 'auto';
             } else {
+              card.removeAttribute('data-testid');
               card.style.display = 'none';
-              card.style.visibility = 'hidden';
-              card.style.height = '0';
             }
           });
         });
@@ -317,17 +315,15 @@ app.get("/dashboard", (req: Request, res: Response) => {
         // Filter by status
         document.querySelector('[data-testid="filter-status"]').addEventListener('change', (e) => {
           const status = e.target.value.toLowerCase();
-          document.querySelectorAll('[data-testid="device-card"]').forEach(card => {
+          document.querySelectorAll('.device-card').forEach(card => {
             const deviceStatus = card.querySelector('[data-testid="device-status"]');
             const hasStatus = !status || deviceStatus.classList.contains('status-' + status);
             if (hasStatus) {
+              card.setAttribute('data-testid', 'device-card');
               card.style.display = 'block';
-              card.style.visibility = 'visible';
-              card.style.height = 'auto';
             } else {
+              card.removeAttribute('data-testid');
               card.style.display = 'none';
-              card.style.visibility = 'hidden';
-              card.style.height = '0';
             }
           });
         });
