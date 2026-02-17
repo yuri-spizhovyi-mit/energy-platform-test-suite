@@ -1,6 +1,10 @@
 # Energy Platform Test Suite
 
+[![CI](https://github.com/yuri-spizhovyi-mit/energy-platform-test-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/yuri-spizhovyi-mit/energy-platform-test-suite/actions/workflows/ci.yml)
+
 Comprehensive test suite for the Energy Platform, covering API testing, event-driven architecture, WebSocket communication, and end-to-end scenarios.
+
+**Test Coverage:** 97/97 tests passing ✅ (100% pass rate)
 
 ## 📋 Table of Contents
 
@@ -15,7 +19,7 @@ Comprehensive test suite for the Energy Platform, covering API testing, event-dr
 
 ## Prerequisites
 
-- **Node.js 18+**
+- **Node.js 20+** (required for Cypress 15 compatibility)
 - **Docker & Docker Compose** (for integration tests)
 - **npm** or **yarn**
 
@@ -142,6 +146,28 @@ npm run services:down
    With Kafka running, the mock server will publish each new reading (from `POST /api/readings` and `POST /api/readings/batch`) to the `energy-readings` topic. You can override the topic with `KAFKA_TOPIC_READINGS`.
 
 ## Test Infrastructure
+
+### Mock API Server
+
+The test suite includes a fully functional Express.js mock server (`mock-server.ts`) that provides:
+
+- **REST API endpoints** for energy readings and device management
+- **GraphQL API** with queries and mutations
+- **WebSocket server** for real-time updates
+- **E2E Dashboard UI** at `/dashboard` with:
+  - Device listing with real-time energy readings
+  - Search and filter functionality (by type and status)
+  - Responsive design (mobile, tablet, desktop)
+  - WebSocket status indicator
+  - Device detail pages at `/devices/:id`
+
+**Sample Devices:**
+- Device 1 (Grid, Active)
+- Solar Panel Array (Solar, Active)
+- Device 2 (Wind, Inactive)
+- Battery Storage Unit (Battery, Maintenance)
+
+### Docker Services
 
 The test suite uses Docker Compose to spin up required services:
 
@@ -291,6 +317,13 @@ const solarReadings = TestFixtures.createSolarGenerationPattern('device-123');
 
 ## Test Coverage
 
+**Current Status: 97/97 tests passing (100%)**
+
+- ✅ Unit Tests: 65/65 passing
+- ✅ Kafka Tests: 5/5 passing
+- ✅ Performance Tests: 10/10 passing
+- ✅ E2E Tests: 17/17 passing
+
 The test suite covers:
 
 ### ✅ API Testing
@@ -333,17 +366,40 @@ The test suite covers:
 
 ## CI/CD
 
+[![CI Status](https://github.com/yuri-spizhovyi-mit/energy-platform-test-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/yuri-spizhovyi-mit/energy-platform-test-suite/actions/workflows/ci.yml)
+
 Tests run automatically on GitHub Actions for:
+- Every push to `main` branch
 - Every pull request
-- Merges to `main` and `develop` branches
 
 ### Pipeline Stages
 
-1. **Lint** - Code quality checks
-2. **Test** - Unit and integration tests
-3. **E2E** - Cypress end-to-end tests
-4. **Performance** - Load testing (main branch only)
-5. **Coverage** - Upload to Codecov
+The CI pipeline runs the following jobs in parallel:
+
+1. **Test** (~5-6 minutes)
+   - Starts Kafka, Zookeeper, PostgreSQL, and Redis services
+   - Runs all unit tests (65 tests)
+   - Runs Kafka event flow tests (5 tests)
+   - Runs performance tests (10 tests)
+   - Runs Cypress E2E tests (17 tests)
+   - Uploads test artifacts (videos, screenshots)
+
+2. **Lint** (~40 seconds)
+   - TypeScript type checking
+   - ESLint code quality checks
+
+### Service Configuration
+
+The CI pipeline uses Docker containers for:
+- **PostgreSQL 15** - Database tests
+- **Redis 7** - Caching and message queue tests
+- **Kafka + Zookeeper 7.5.0** - Event streaming tests (with dual listener configuration)
+
+### Requirements
+
+- Node.js 20 (for Cypress 15 compatibility)
+- All services must be healthy before tests run
+- E2E tests require the mock server to be running on port 3000
 
 ## Troubleshooting
 
