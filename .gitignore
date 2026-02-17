@@ -26,6 +26,16 @@ cypress/downloads/
 .DS_Store
 Thumbs.db
 
+# Windows reserved device names (avoid "failed to insert into database")
+nul
+NUL
+con
+CON
+prn
+PRN
+aux
+AUX
+
 # Build output
 dist/
 build/

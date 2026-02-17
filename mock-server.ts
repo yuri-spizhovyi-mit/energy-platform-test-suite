@@ -4,6 +4,7 @@ import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
 import { buildSchema } from "graphql";
 import { graphqlHTTP } from "express-graphql";
+import { Kafka } from "kafkajs";
 
 // ============================================================================
 // TYPES
@@ -184,6 +185,57 @@ function generateReading(device: Device): EnergyReading {
 }
 
 // ============================================================================
+// KAFKA (optional - only when KAFKA_BROKER is set)
+// ============================================================================
+
+const KAFKA_BROKER = process.env.KAFKA_BROKER;
+const KAFKA_TOPIC_READINGS = process.env.KAFKA_TOPIC_READINGS || "energy-readings";
+
+let kafkaProducer: Awaited<ReturnType<Kafka["producer"]>> | null = null;
+
+async function initKafka(): Promise<void> {
+  if (!KAFKA_BROKER) return;
+  try {
+    const kafka = new Kafka({
+      clientId: "mock-server",
+      brokers: [KAFKA_BROKER],
+      retry: { retries: 2, initialRetryTime: 500 },
+      connectionTimeout: 5000,
+    });
+    kafkaProducer = kafka.producer();
+    await kafkaProducer.connect();
+    console.log(`📨 Kafka producer connected to ${KAFKA_BROKER} (topic: ${KAFKA_TOPIC_READINGS})`);
+  } catch (err) {
+    console.warn("Kafka not available:", (err as Error).message, "- continuing without publishing events.");
+    kafkaProducer = null;
+  }
+}
+
+async function publishReadingToKafka(reading: EnergyReading): Promise<void> {
+  if (!kafkaProducer) return;
+  try {
+    await kafkaProducer.send({
+      topic: KAFKA_TOPIC_READINGS,
+      messages: [
+        {
+          key: reading.deviceId,
+          value: JSON.stringify({
+            deviceId: reading.deviceId,
+            value: reading.kwh,
+            id: reading.id,
+            timestamp: reading.timestamp,
+            voltage: reading.voltage,
+            readingType: reading.readingType,
+          }),
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("Kafka publish error:", (err as Error).message);
+  }
+}
+
+// ============================================================================
 // EXPRESS APP SETUP
 // ============================================================================
 
@@ -334,7 +386,7 @@ app.get("/dashboard", (req: Request, res: Response) => {
 });
 
 // POST /api/readings - Create energy reading
-app.post("/api/readings", (req: Request, res: Response) => {
+app.post("/api/readings", async (req: Request, res: Response) => {
   const { deviceId, kwh, voltage, readingType } = req.body;
 
   // Validate device ID format
@@ -392,6 +444,9 @@ app.post("/api/readings", (req: Request, res: Response) => {
       });
     });
   }
+
+  // Publish to Kafka when broker is configured
+  await publishReadingToKafka(reading);
 
   console.log(`✅ Created reading for ${deviceId}: ${kwh} kWh`);
 
@@ -543,7 +598,7 @@ app.put("/api/devices/:id", (req: Request, res: Response) => {
 });
 
 // POST /api/readings/batch - Batch create readings
-app.post("/api/readings/batch", (req: Request, res: Response) => {
+app.post("/api/readings/batch", async (req: Request, res: Response) => {
   const { readings: batchReadings } = req.body;
 
   if (!Array.isArray(batchReadings)) {
@@ -565,6 +620,8 @@ app.post("/api/readings/batch", (req: Request, res: Response) => {
     readings.push(newReading);
     return newReading;
   });
+
+  await Promise.all(created.map((r) => publishReadingToKafka(r)));
 
   res.status(201).json({ created: created.length, readings: created });
 });
@@ -972,58 +1029,74 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // SERVER STARTUP
 // ============================================================================
 
-httpServer.listen(PORT, () => {
-  console.log("\n" + "=".repeat(70));
-  console.log("🚀 ENERGY PLATFORM MOCK SERVER");
-  console.log("=".repeat(70));
-  console.log(`\n📍 Server running on port ${PORT}`);
-  console.log(`\n🌐 REST API Endpoints:`);
-  console.log(`   POST   http://localhost:${PORT}/api/readings`);
-  console.log(`   POST   http://localhost:${PORT}/api/readings/batch`);
-  console.log(`   GET    http://localhost:${PORT}/api/readings/:deviceId`);
-  console.log(
-    `   GET    http://localhost:${PORT}/api/readings/:deviceId/aggregate`,
-  );
-  console.log(`   GET    http://localhost:${PORT}/api/devices`);
-  console.log(`   GET    http://localhost:${PORT}/api/devices/:id`);
-  console.log(`   PUT    http://localhost:${PORT}/api/devices/:id`);
-  console.log(`\n🔷 GraphQL Endpoint:`);
-  console.log(`   POST   http://localhost:${PORT}/graphql`);
-  console.log(`   UI     http://localhost:${PORT}/graphql (GraphiQL)`);
-  console.log(`\n🔌 WebSocket Server:`);
-  console.log(`   ws://localhost:${PORT}`);
-  console.log(
-    `   Events: subscribe, subscribe:status, subscribe:alerts, join:room`,
-  );
-  console.log(
-    `   Emits: reading:update, status:update, alert:reading, room:update`,
-  );
-  console.log(`\n📊 Sample Devices:`);
-  devices.forEach((device) => {
-    console.log(`   • ${device.id} - ${device.name} (${device.type})`);
-  });
-  console.log(`\n⚡ Real-time Simulation:`);
-  console.log(
-    `   Generating readings every ${SIMULATION_INTERVAL / 1000} seconds`,
-  );
-  console.log(`   Keeping last ${MAX_READINGS_PER_DEVICE} readings per device`);
-  console.log(`\n✅ Server ready to accept connections!`);
-  console.log("=".repeat(70) + "\n");
-});
+async function startServer(): Promise<void> {
+  await initKafka();
 
-// Graceful shutdown
-process.on("SIGTERM", () => {
+  httpServer.listen(PORT, () => {
+    console.log("\n" + "=".repeat(70));
+    console.log("🚀 ENERGY PLATFORM MOCK SERVER");
+    console.log("=".repeat(70));
+    console.log(`\n📍 Server running on port ${PORT}`);
+    if (kafkaProducer) {
+      console.log(`\n📨 Kafka: publishing to ${KAFKA_TOPIC_READINGS} (broker: ${KAFKA_BROKER})`);
+    }
+    console.log(`\n🌐 REST API Endpoints:`);
+    console.log(`   POST   http://localhost:${PORT}/api/readings`);
+    console.log(`   POST   http://localhost:${PORT}/api/readings/batch`);
+    console.log(`   GET    http://localhost:${PORT}/api/readings/:deviceId`);
+    console.log(
+      `   GET    http://localhost:${PORT}/api/readings/:deviceId/aggregate`,
+    );
+    console.log(`   GET    http://localhost:${PORT}/api/devices`);
+    console.log(`   GET    http://localhost:${PORT}/api/devices/:id`);
+    console.log(`   PUT    http://localhost:${PORT}/api/devices/:id`);
+    console.log(`\n🔷 GraphQL Endpoint:`);
+    console.log(`   POST   http://localhost:${PORT}/graphql`);
+    console.log(`   UI     http://localhost:${PORT}/graphql (GraphiQL)`);
+    console.log(`\n🔌 WebSocket Server:`);
+    console.log(`   ws://localhost:${PORT}`);
+    console.log(
+      `   Events: subscribe, subscribe:status, subscribe:alerts, join:room`,
+    );
+    console.log(
+      `   Emits: reading:update, status:update, alert:reading, room:update`,
+    );
+    console.log(`\n📊 Sample Devices:`);
+    devices.forEach((device) => {
+      console.log(`   • ${device.id} - ${device.name} (${device.type})`);
+    });
+    console.log(`\n⚡ Real-time Simulation:`);
+    console.log(
+      `   Generating readings every ${SIMULATION_INTERVAL / 1000} seconds`,
+    );
+    console.log(`   Keeping last ${MAX_READINGS_PER_DEVICE} readings per device`);
+    console.log(`\n✅ Server ready to accept connections!`);
+    console.log("=".repeat(70) + "\n");
+  });
+}
+
+async function shutdown(): Promise<void> {
   console.log("\n🛑 Shutting down gracefully...");
+  if (kafkaProducer) {
+    try {
+      await kafkaProducer.disconnect();
+      console.log("✅ Kafka producer disconnected");
+    } catch (e) {
+      console.error("Kafka disconnect error:", (e as Error).message);
+    }
+  }
   httpServer.close(() => {
     console.log("✅ Server closed");
     process.exit(0);
   });
+}
+
+process.on("SIGTERM", () => {
+  void shutdown();
 });
 
 process.on("SIGINT", () => {
-  console.log("\n🛑 Shutting down gracefully...");
-  httpServer.close(() => {
-    console.log("✅ Server closed");
-    process.exit(0);
-  });
+  void shutdown();
 });
+
+void startServer();

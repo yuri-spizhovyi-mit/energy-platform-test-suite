@@ -113,6 +113,33 @@ npm run services:down
 | `npm run services:up` | Start all infrastructure services |
 | `npm run services:down` | Stop all infrastructure services |
 | `npm run services:logs` | View service logs |
+| `npm run services:kafka` | Start only Kafka (and Zookeeper) for event tests |
+
+### Making Kafka work with the mock server
+
+1. **Start Kafka** (and Zookeeper):
+   ```bash
+   npm run services:kafka
+   ```
+   Or start everything: `npm run services:up`.
+
+2. **Start the mock server with Kafka enabled** (so it publishes reading events to Kafka):
+   ```bash
+   # Windows (PowerShell)
+   $env:KAFKA_BROKER="127.0.0.1:9092"; npm run server
+
+   # Windows (CMD)
+   set KAFKA_BROKER=127.0.0.1:9092 && npm run server
+
+   # macOS / Linux
+   KAFKA_BROKER=127.0.0.1:9092 npm run server
+   ```
+
+3. **Run Kafka tests:**
+   ```bash
+   npm run test:kafka
+   ```
+   With Kafka running, the mock server will publish each new reading (from `POST /api/readings` and `POST /api/readings/batch`) to the `energy-readings` topic. You can override the topic with `KAFKA_TOPIC_READINGS`.
 
 ## Test Infrastructure
 

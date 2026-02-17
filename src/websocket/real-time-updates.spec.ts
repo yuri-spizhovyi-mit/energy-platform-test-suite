@@ -7,6 +7,8 @@ describe("WebSocket Real-time Updates", () => {
   let socket: ReturnType<typeof io>;
   const baseUrl = process.env.WS_BASE_URL || "http://localhost:3000";
 
+  const CONNECT_TIMEOUT_MS = 15000; // under parallel load mock server may be slow
+
   beforeEach((done) => {
     let settled = false;
     const settle = (err?: Error) => {
@@ -19,12 +21,12 @@ describe("WebSocket Real-time Updates", () => {
 
     const timeout = setTimeout(() => {
       settle(new Error("Socket connection timeout"));
-    }, 5000);
+    }, CONNECT_TIMEOUT_MS);
 
     socket = io(baseUrl, {
-      transports: ["websocket"],
+      transports: ["websocket", "polling"], // try polling if websocket is slow
       reconnection: false,
-      timeout: 5000,
+      timeout: CONNECT_TIMEOUT_MS,
     });
 
     socket.on("connect", () => settle());

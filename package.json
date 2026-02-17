@@ -20,6 +20,7 @@
     "services:up": "docker-compose up -d",
     "services:down": "docker-compose down",
     "services:logs": "docker-compose logs -f",
+    "services:kafka": "docker-compose up -d zookeeper kafka",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
