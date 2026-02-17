@@ -20,7 +20,8 @@ describe('Device Dashboard E2E', () => {
       cy.get('[data-testid="device-card"]').first().within(() => {
         cy.get('[data-testid="device-status"]').should('be.visible');
         cy.get('[data-testid="device-status"]')
-          .should('have.class', /status-(active|inactive|maintenance)/);
+          .invoke('attr', 'class')
+          .should('match', /status-(active|inactive|maintenance)/);
       });
     });
   });
